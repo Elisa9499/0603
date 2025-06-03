@@ -1,35 +1,72 @@
 let video;
-let overlayGraphics;
+let poseNet;
+let poses = [];
+let currentQuestion = 0;
+let questions = [
+  { text: "教育科技學系主要是訓練學生成為學校教師，因此課程以教學法與教育心理為主。", answer: false },
+  { text: "教育科技學系的學生需要學習如何使用多媒體工具，例如影像剪輯、簡報設計與網頁製作。", answer: true },
+  { text: "教育科技學系的學生畢業後大多進入學校當老師，極少進入企業或數位內容產業。", answer: false },
+  { text: "虛擬實境（VR）與人工智慧（AI）是教育科技學系可能涉及的教學科技應用領域之一。", answer: true },
+  { text: "教育科技學系的課程不需要任何技術操作能力，只要理解教育理論即可。", answer: false }
+];
 
 function setup() {
-  createCanvas(windowWidth, windowHeight); // 全螢幕畫布
-  background('#bde0fe'); // 設定背景顏色
+  createCanvas(windowWidth, windowHeight);
+  video = createCapture(VIDEO);
+  video.size(windowWidth, windowHeight);
+  video.hide();
 
-  video = createCapture(VIDEO); // 解取攝影機影像
-  video.size(windowWidth * 0.8, windowHeight * 0.8); // 設定影像寬高為視窗大小的 80%
-  video.hide(); // 隱藏原始影像元素
+  poseNet = ml5.poseNet(video, modelReady);
+  poseNet.on('pose', function(results) {
+    poses = results;
+  });
+}
 
-  // 建立與 video 尺寸相同的 overlayGraphics
-  overlayGraphics = createGraphics(video.width, video.height);
-  overlayGraphics.fill(255, 0, 0, 150); // 半透明紅色
-  overlayGraphics.noStroke();
-  overlayGraphics.ellipse(overlayGraphics.width / 2, overlayGraphics.height / 2, 100, 100); // 在中心繪製圓形
+function modelReady() {
+  console.log("PoseNet model loaded");
 }
 
 function draw() {
-  background('#bde0fe'); // 確保背景顏色一致
+  background('#bde0fe');
+  image(video, 0, 0, width, height);
 
-  // 翻轉影像左右顯示
-  push();
-  translate(width / 2, height / 2); // 移動到畫布中心
-  scale(-1, 1); // 左右翻轉
-  image(video, -video.width / 2, -video.height / 2); // 顯示翻轉後的影像
-  image(overlayGraphics, -video.width / 2, -video.height / 2); // 顯示 overlayGraphics 在視訊畫面上方
-  pop();
+  drawKeypoints();
+  displayQuestion();
 }
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight); // 當視窗大小改變時，調整畫布大小
-  video.size(windowWidth * 0.8, windowHeight * 0.8); // 調整影像大小
-  overlayGraphics.resizeCanvas(video.width, video.height); // 調整 overlayGraphics 大小
+function drawKeypoints() {
+  if (poses.length > 0) {
+    let pose = poses[0].pose;
+    let rightWrist = pose.keypoints.find(k => k.part === "rightWrist");
+    let leftWrist = pose.keypoints.find(k => k.part === "leftWrist");
+
+    if (rightWrist && rightWrist.score > 0.5) {
+      fill(255, 0, 0);
+      ellipse(rightWrist.position.x, rightWrist.position.y, 20, 20);
+
+      // Check for right movement
+      if (rightWrist.position.x > width * 0.75) {
+        checkAnswer(true);
+      } else if (rightWrist.position.x < width * 0.25) {
+        checkAnswer(false);
+      }
+    }
+  }
+}
+
+function displayQuestion() {
+  textSize(24);
+  fill(0);
+  textAlign(CENTER, CENTER);
+  text(questions[currentQuestion].text, width / 2, height / 2);
+}
+
+function checkAnswer(isRight) {
+  let correct = questions[currentQuestion].answer === isRight;
+  if (correct) {
+    alert("答對了！");
+  } else {
+    alert("答錯了！");
+  }
+  currentQuestion = (currentQuestion + 1) % questions.length;
 }
