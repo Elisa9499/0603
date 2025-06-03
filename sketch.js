@@ -12,9 +12,19 @@ let questions = [
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-  video = createCapture(VIDEO);
+
+  // 嘗試啟動相機
+  video = createCapture(VIDEO, function() {
+    console.log("相機啟動成功");
+  });
   video.size(windowWidth, windowHeight);
   video.hide();
+
+  // 如果相機無法啟動，顯示錯誤訊息
+  video.elt.onerror = function(err) {
+    console.error("相機啟動失敗，請檢查瀏覽器權限或硬體問題:", err);
+    alert("相機啟動失敗，請檢查瀏覽器權限或硬體問題。");
+  };
 
   poseNet = ml5.poseNet(video, modelReady);
   poseNet.on('pose', function(results) {
@@ -28,10 +38,16 @@ function modelReady() {
 
 function draw() {
   background('#bde0fe');
-  image(video, 0, 0, width, height);
-
-  drawKeypoints();
-  displayQuestion();
+  if (video.loadedmetadata) {
+    image(video, 0, 0, width, height);
+    drawKeypoints();
+    displayQuestion();
+  } else {
+    fill(255, 0, 0);
+    textSize(24);
+    textAlign(CENTER, CENTER);
+    text("正在嘗試啟動相機，請稍候...", width / 2, height / 2);
+  }
 }
 
 function drawKeypoints() {
